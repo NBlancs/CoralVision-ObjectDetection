@@ -39,12 +39,23 @@ class YOLOApp:
         
         self.record_button = tk.Button(root, text="Start Recording", command=self.toggle_recording)
         self.record_button.pack()
-        
+
+        # Recording indicator label
+        self.rec_label = tk.Label(root, text="Recording: OFF", fg="gray")
+        self.rec_label.pack(pady=(4, 8))
+
         # Start video capture
-        self.video_source = os.path.join(os.path.dirname(os.path.abspath(__file__)), "v2videotesting.mp4")
+        # use mp4 vid for testing
+        self.video_source = os.path.join(os.path.dirname(os.path.abspath(__file__)), "coral.mp4")
+
+        # To use your camera instead of a video file, comment out the next line:
+        # self.video_source = os.path.join(os.path.dirname(os.path.abspath(__file__)), "v2videotesting.mp4")
+        # and uncomment the following line:
+        # self.video_source = 0
+
         self.vid = cv2.VideoCapture(self.video_source)
         if not self.vid.isOpened():
-            messagebox.showerror("Camera Error", "Could not open the default camera (index 0).")
+            messagebox.showerror("Video Source Error", f"Could not open video source:\n{self.video_source}")
         else:
             # Try to read FPS from the source; fall back to 30 if unavailable
             src_fps = self.vid.get(cv2.CAP_PROP_FPS)
@@ -63,6 +74,8 @@ class YOLOApp:
                 self.out = None
             messagebox.showinfo("Recording", f"Recording stopped.\nSaved to {self.output_filename or 'file'}")
             self.output_filename = None
+            # Update indicator
+            self.rec_label.config(text="Recording: OFF", fg="gray")
         else:
             self.is_recording = True
             self.record_button.config(text="Stop Recording")
@@ -72,6 +85,8 @@ class YOLOApp:
             self.output_filename = f'output_{timestamp}.mp4'
             # Defer VideoWriter creation until we have the first frame to ensure correct size
             messagebox.showinfo("Recording", f"Recording started. Saving to {self.output_filename}.")
+            # Update indicator immediately
+            self.rec_label.config(text="Recording: ON", fg="red")
     
     def update(self):
         if self.vid is None or not self.vid.isOpened():
@@ -103,6 +118,8 @@ class YOLOApp:
                         f"Could not open video writer for:\n{err_path}\n\n"
                         "Try installing an OpenCV build with FFMPEG support or a compatible MP4 codec."
                     )
+                    # Revert indicator on failure
+                    self.rec_label.config(text="Recording: OFF", fg="gray")
 
             # If recording, write the frame to the video file
             if self.is_recording and self.out is not None:

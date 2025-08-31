@@ -1,0 +1,469 @@
+{% load static %}
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Coral Vision Controller</title>
+  <link rel="icon" href="{% static 'coralvisionlogo.png' %}" type="image/png" />
+    <style>
+      :root{
+        --bg:#f6f7fb; --card:#ffffff; --text:#1f2937; --muted:#6b7280; --border:#e5e7eb; --accent:#06b6d4; --accent-2:#3b82f6;
+      }
+      *{box-sizing:border-box}
+      html,body{height:100%}
+      body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji"}
+      .container{display:grid;grid-template-columns:2fr 1fr;gap:16px;padding:16px;min-height:100%}
+      .card{background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.04);display:flex;flex-direction:column}
+      .card-head{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--border);border-top-left-radius:12px;border-top-right-radius:12px}
+      .card-head h3{margin:0;font-size:14px;font-weight:600;color:var(--muted)}
+  .icon-btn{border:1px solid var(--border);background:#fff;border-radius:999px;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+      .icon-btn:hover{background:#f3f4f6}
+      .card-body{padding:12px;flex:1;display:flex;flex-direction:column}
+  /* Camera */
+      .camera-wrap{position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:10px;overflow:hidden;border:1px solid var(--border)}
+      #video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+      #overlay{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
+  #hud{margin-top:8px;font-size:12px;color:var(--muted)}
+  .chips{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
+  .chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);background:#fff;border-radius:999px;padding:4px 10px;font-size:12px}
+  .dot{width:8px;height:8px;border-radius:999px;background:#9ca3af}
+  .dot.green{background:#10b981}
+  .dot.red{background:#ef4444}
+  /* Tool row */
+  .tool-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .btn{appearance:none;border:1px solid var(--border);background:#fff;border-radius:8px;padding:8px 10px;font-size:12px;cursor:pointer}
+  .btn:hover{background:#f9fafb}
+  .btn.primary{border-color:var(--accent); background:#ecfeff}
+  .btn.danger{border-color:#f43f5e; background:#fff1f2}
+  .btn.success{border-color:#10b981; background:#ecfdf5}
+  .btn.sm{padding:6px 8px;font-size:12px}
+  select{border:1px solid var(--border);background:#fff;border-radius:8px;padding:8px 10px;font-size:12px}
+  /* Toasts */
+  .toasts{position:fixed;right:12px;bottom:12px;display:flex;flex-direction:column;gap:8px;z-index:9999}
+  .toast{background:#111;color:#fff;padding:10px 12px;border-radius:8px;box-shadow:0 8px 18px rgba(0,0,0,.25);font-size:12px;opacity:.95}
+  .toast.ok{background:#059669}
+  .toast.err{background:#b91c1c}
+      /* Right column */
+      .right-col{display:grid;grid-template-rows:1fr auto;gap:16px}
+      .state-box{flex:1;border-radius:8px;min-height:220px}
+      /* Controls */
+  .controls-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .ctrl{user-select:none;cursor:pointer;background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;transition:transform .05s ease, box-shadow .15s ease, border-color .1s ease, background .1s ease}
+      .ctrl:hover{box-shadow:0 6px 16px rgba(0,0,0,.08)}
+      .ctrl:active{transform:translateY(1px)}
+  .ctrl.active{border-color:var(--accent-2); box-shadow:0 0 0 3px rgba(59,130,246,.2) inset, 0 8px 18px rgba(59,130,246,.15); background:#eff6ff}
+      .ctrl .k{font-size:11px;color:var(--muted)}
+      .ctrl .t{font-weight:600}
+      @media (max-width: 980px){.container{grid-template-columns:1fr}}
+
+  /* Expand/backdrop */
+  .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);opacity:0;pointer-events:none;transition:opacity .15s ease;z-index:9997}
+  .backdrop.show{opacity:1;pointer-events:auto}
+  #cameraCard.expanded{position:fixed;inset:5vh 5vw;background:var(--card);z-index:9998;display:flex;flex-direction:column}
+  #cameraCard.expanded .card-body{flex:1;display:flex}
+  #cameraCard.expanded .camera-wrap{flex:1;aspect-ratio:auto;height:100%}
+  #cameraCard.expanded #hud{margin-top:10px}
+
+  /* Login overlay */
+  .login-overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#061826,#0b2136 45%, #083c5e);z-index:10000}
+  .login-card{width:min(420px,92vw);background:rgba(255,255,255,.04);backdrop-filter: blur(10px);border:1px solid rgba(255,255,255,.12);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.35);padding:22px;color:#e5e7eb}
+  .login-brand{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+  .login-brand .logo{width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
+  .login-card h1{margin:0 0 14px 0;font-size:20px;font-weight:700}
+  .login-card p{margin:0 0 14px 0;color:#b9c0ca;font-size:13px}
+  .field{display:flex;flex-direction:column;gap:6px;margin:10px 0}
+  .field label{font-size:12px;color:#cbd5e1}
+  .field input{appearance:none;border:1px solid #334155;background:rgba(15,23,42,.6);color:#e5e7eb;border-radius:10px;padding:10px 12px;font-size:14px;outline:none}
+  .field input:focus{border-color:var(--accent-2);box-shadow:0 0 0 3px rgba(59,130,246,.25)}
+  .login-actions{display:flex;align-items:center;justify-content:space-between;margin-top:12px}
+  .login-btn{appearance:none;border:1px solid var(--accent-2);background:linear-gradient(135deg,#60a5fa,#22d3ee);color:#081018;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer}
+  .login-btn:hover{filter:brightness(1.05)}
+  .login-error{min-height:18px;font-size:12px;color:#fca5a5;margin-top:8px}
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- Left: Camera Feed -->
+  <section class="card" id="cameraCard">
+        <div class="card-head">
+          <h3>Camera Feed</h3>
+          <button class="icon-btn" id="expandBtn" title="Expand">⤢</button>
+        </div>
+          <div class="card-body">
+          <div class="camera-wrap">
+            <img id="video" src="/video_feed" alt="Live stream" />
+            <canvas id="overlay"></canvas>
+          </div>
+          <div id="hud">Connecting…</div>
+            <div class="tool-row">
+              <button class="btn" id="btnWebcam">Use Webcam</button>
+              <button class="btn" id="btnVideo">Use Sample Video</button>
+              <label style="display:inline-flex;align-items:center;gap:6px">Cam:
+                <select id="camIndex">
+                  <option value="0">0</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                </select>
+              </label>
+              <span style="flex:1"></span>
+              <button class="btn success" id="btnStartRec">Start Recording</button>
+              <button class="btn danger" id="btnStopRec">Stop Recording</button>
+              <button class="btn primary" id="btnTheme">Toggle Theme</button>
+            </div>
+            <div class="chips">
+              <span class="chip" id="chipSource"><span class="dot" id="dotSource"></span><span id="txtSource">Source: —</span></span>
+              <span class="chip" id="chipRec"><span class="dot" id="dotRec"></span><span id="txtRec">Recording: OFF</span></span>
+            </div>
+        </div>
+      </section>
+
+      <!-- Right: Rover State + Controls -->
+      <div class="right-col">
+        <section class="card state-box">
+          <div class="card-head"><h3>Coral Vision State</h3><div style="width:28px"></div></div>
+          <div class="card-body" id="stateBody">
+            <div style="font-size:13px;color:var(--muted);margin-bottom:8px">Last input:</div>
+            <div id="lastInput" style="font-family:monospace;font-size:14px">—</div>
+            <hr style="border:none;border-top:1px solid var(--border);margin:12px 0" />
+            <div style="font-size:13px;color:var(--muted);margin-bottom:8px">Recent activity:</div>
+            <div id="activity" style="font-family:monospace;font-size:12px;white-space:pre-line"></div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-head"><h3>Controls</h3><div><button id="btnLogout" class="btn sm danger" title="Logout" style="display:none">Logout</button></div></div>
+          <div class="card-body">
+            <div class="controls-grid" id="controls">
+              <button class="ctrl" data-action="release-pump"><div class="t">Release Pump</div><div class="k">(Q)</div></button>
+              <button class="ctrl" data-action="forward"><div class="t">Foward</div><div class="k">(W)</div></button>
+              <button class="ctrl" data-action="intake-pump"><div class="t">Intake Pump</div><div class="k">(E)</div></button>
+              <button class="ctrl" data-action="left"><div class="t">Left</div><div class="k">(A)</div></button>
+              <button class="ctrl" data-action="stop"><div class="t">Stop</div><div class="k">(space)</div></button>
+              <button class="ctrl" data-action="right"><div class="t">Right</div><div class="k">(D)</div></button>
+              <button class="ctrl" data-action="hover"><div class="t">Hover</div><div class="k">(H)</div></button>
+              <button class="ctrl" data-action="backward"><div class="t">Backward</div><div class="k">(S)</div></button>
+              <button class="ctrl" data-action="thrusters"><div class="t">Thrusters</div><div class="k">(F)</div></button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+  <!-- Backdrop for expand -->
+  <div class="backdrop" id="backdrop"></div>
+
+  <!-- Login overlay -->
+  <div class="login-overlay" id="loginOverlay" style="display:none">
+    <div class="login-card">
+      <div class="login-brand" style="justify-content:center">
+        <img class="logo" src="{% static 'coralvisionlogo.png' %}" alt="Coral Vision" style="width:64px;height:64px;border-radius:8px;object-fit:cover" />
+        <div style="line-height:1.2">
+          <div style="font-weight:800;letter-spacing:.4px">Coral Vision</div>
+          <div style="font-size:12px;color:#9fb2c6">Controller access</div>
+        </div>
+      </div>
+      <h1>Sign in</h1>
+      <p>Enter your credentials to access the live controller.</p>
+      <form id="loginForm">
+        <div class="field">
+          <label for="loginUser">Username</label>
+          <input id="loginUser" name="user" autocomplete="username" placeholder="e.g. coral" />
+        </div>
+        <div class="field">
+          <label for="loginPass">Password</label>
+          <input id="loginPass" name="pass" type="password" autocomplete="current-password" placeholder="••••••••" />
+        </div>
+        <div class="login-actions">
+          <span style="font-size:12px;color:#9fb2c6">Theme: <strong>Light/Night</strong> toggle inside</span>
+          <button type="submit" class="login-btn">Sign in</button>
+        </div>
+        <div class="login-error" id="loginError"></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="toasts" id="toasts"></div>
+  <script>
+      // Theme toggle
+      let dark = false;
+      function applyTheme(){
+        if(dark){
+          document.documentElement.style.setProperty('--bg','#0b1020');
+          document.documentElement.style.setProperty('--card','#0f172a');
+          document.documentElement.style.setProperty('--text','#e5e7eb');
+          document.documentElement.style.setProperty('--muted','#9ca3af');
+          document.documentElement.style.setProperty('--border','#1f2937');
+        } else {
+          document.documentElement.style.removeProperty('--bg');
+          document.documentElement.style.removeProperty('--card');
+          document.documentElement.style.removeProperty('--text');
+          document.documentElement.style.removeProperty('--muted');
+          document.documentElement.style.removeProperty('--border');
+        }
+      }
+
+      document.getElementById('btnTheme').addEventListener('click', ()=>{
+        dark = !dark; applyTheme();
+      });
+
+      // Expand handling
+      const cameraCard = document.getElementById('cameraCard');
+      const expandBtn = document.getElementById('expandBtn');
+      const backdropEl = document.getElementById('backdrop');
+      function setExpanded(on){
+        if(on){ cameraCard.classList.add('expanded'); backdropEl.classList.add('show'); }
+        else { cameraCard.classList.remove('expanded'); backdropEl.classList.remove('show'); }
+        sizeOverlay();
+      }
+      expandBtn.addEventListener('click', ()=>{
+        const on = !cameraCard.classList.contains('expanded');
+        setExpanded(on);
+      });
+      backdropEl.addEventListener('click', ()=> setExpanded(false));
+      window.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') setExpanded(false); });
+
+      // Source switching + recording controls
+      function toast(msg, ok=true){
+        const box = document.getElementById('toasts');
+        const el = document.createElement('div');
+        el.className = `toast ${ok? 'ok':'err'}`;
+        el.textContent = msg;
+        box.appendChild(el);
+        setTimeout(()=>{ el.style.opacity = '0'; el.style.transform='translateY(6px)'; }, 2200);
+        setTimeout(()=>{ box.removeChild(el); }, 2600);
+      }
+
+      async function api(path){
+        const r = await fetch(path, {method:'POST'});
+        const j = await r.json().catch(()=>({ok:false,error:'bad json'}));
+        toast(j.ok ? 'Success' : (j.error || 'Failed'), !!j.ok);
+        return j;
+      }
+      document.getElementById('btnWebcam').addEventListener('click', async()=>{
+        const res = await api('/api/use_webcam');
+        logActivity(res.ok? 'switched to webcam' : `webcam switch failed: ${res.error||''}`);
+      });
+      document.getElementById('btnVideo').addEventListener('click', async()=>{
+        const res = await api('/api/use_video');
+        logActivity(res.ok? 'switched to sample video' : `video switch failed: ${res.error||''}`);
+      });
+      document.getElementById('camIndex').addEventListener('change', async(e)=>{
+        const i = e.target.value;
+        const res = await api(`/api/use_camera?i=${encodeURIComponent(i)}`);
+        logActivity(res.ok? `switched to camera ${i}` : `camera ${i} failed: ${res.error||''}`);
+      });
+      document.getElementById('btnStartRec').addEventListener('click', async()=>{
+        const res = await api('/api/start_recording');
+        logActivity(res.ok? `recording started -> ${res.path||''}` : `start recording failed: ${res.error||''}`);
+      });
+      document.getElementById('btnStopRec').addEventListener('click', async()=>{
+        const res = await api('/api/stop_recording');
+        logActivity(res.ok? 'recording stopped' : `stop recording failed: ${res.error||''}`);
+      });
+
+      // Basic UI hooks + keybinds (no backend actions yet)
+      const lastEl = document.getElementById('lastInput');
+      const activityEl = document.getElementById('activity');
+      const controls = document.getElementById('controls');
+
+      function logActivity(text){
+        const ts = new Date().toLocaleTimeString();
+        lastEl.textContent = `${text}`;
+        // prepend, keep last 8
+        const current = activityEl.textContent.trim();
+        const lines = current ? current.split('\n') : [];
+        lines.unshift(`[${ts}] ${text}`);
+        activityEl.textContent = lines.slice(0,8).join('\n');
+      }
+
+      function setActive(btn, on){
+        if(!btn) return;
+        if(on){
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      }
+
+      function pulse(btn){
+        if(!btn) return;
+        btn.animate([{transform:'scale(1)'},{transform:'scale(0.98)'},{transform:'scale(1)'}],{duration:120});
+      }
+
+      function triggerAction(action, fromKey=false){
+        const btn = controls.querySelector(`[data-action="${action}"]`);
+        logActivity(`${action}${fromKey ? ' (key)' : ''}`);
+        setActive(btn, true);
+        pulse(btn);
+        // auto-clear highlight after a short delay (for tap)
+        setTimeout(()=>setActive(btn,false), 180);
+        console.log('Action:', action);
+      }
+
+      controls.addEventListener('click', (e)=>{
+        const btn = e.target.closest('.ctrl');
+        if(!btn) return;
+        triggerAction(btn.dataset.action);
+      });
+
+      // Keybinds
+      const keyMap = {
+        'q':'release-pump',
+        'w':'forward',
+        'e':'intake-pump',
+        'a':'left',
+        ' ':'stop',
+        'd':'right',
+        'h':'hover',
+        's':'backward',
+        'f':'thrusters'
+      };
+      const down = new Set();
+      function isTyping(e){
+        const t = e.target;
+        return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
+      }
+      function isLoginActive(){
+        const el = document.getElementById('loginOverlay');
+        return !!(el && el.style.display !== 'none');
+      }
+      document.addEventListener('keydown', (e)=>{
+        if(isTyping(e) || isLoginActive()) return; // don't steal keys when typing or on login
+        const k = e.key.length === 1 ? e.key.toLowerCase() : e.key.toLowerCase();
+        if(k in keyMap){
+          e.preventDefault();
+          if(!down.has(k)){
+            down.add(k);
+            const action = keyMap[k];
+            const btn = controls.querySelector(`[data-action="${action}"]`);
+            setActive(btn, true);
+            pulse(btn);
+            logActivity(`${action} (key hold)`);
+          }
+        }
+      });
+      document.addEventListener('keyup', (e)=>{
+        if(isTyping(e) || isLoginActive()) return;
+        const k = e.key.length === 1 ? e.key.toLowerCase() : e.key.toLowerCase();
+        if(k in keyMap){
+          e.preventDefault();
+          down.delete(k);
+          const action = keyMap[k];
+          const btn = controls.querySelector(`[data-action="${action}"]`);
+          setActive(btn, false);
+          logActivity(`${action} (key release)`);
+        }
+      });
+
+      const video = document.getElementById('video');
+      const overlay = document.getElementById('overlay');
+      const ctx = overlay.getContext('2d');
+  const hud = document.getElementById('hud');
+  const txtSource = document.getElementById('txtSource');
+  const dotSource = document.getElementById('dotSource');
+  const txtRec = document.getElementById('txtRec');
+  const dotRec = document.getElementById('dotRec');
+
+      function sizeOverlay(){
+        overlay.width = overlay.clientWidth;
+        overlay.height = overlay.clientHeight;
+      }
+      new ResizeObserver(sizeOverlay).observe(document.querySelector('.camera-wrap'));
+
+      function draw(meta){
+        const w = overlay.width, h = overlay.height;
+        ctx.clearRect(0,0,w,h);
+        const naturalW = video.naturalWidth || w;
+        const naturalH = video.naturalHeight || h;
+        const sx = w / naturalW, sy = h / naturalH;
+        ctx.strokeStyle = '#00e0ff'; ctx.lineWidth = 2; ctx.font = '12px monospace';
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        (meta.detections||[]).forEach(d => {
+          const x1=d.x1*sx, y1=d.y1*sy, x2=d.x2*sx, y2=d.y2*sy;
+          ctx.strokeRect(x1,y1,x2-x1,y2-y1);
+          const label = `${d.class_name} ${(d.conf*100).toFixed(1)}%`;
+          const tw = ctx.measureText(label).width + 6;
+          const y = Math.max(16, y1 - 4);
+          ctx.fillRect(x1, y-14, tw, 14);
+          ctx.fillStyle = '#fff';
+          ctx.fillText(label, x1+3, y-3);
+          ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        });
+        hud.textContent = `FPS: ${meta.fps}  |  Dets: ${meta.detections?.length ?? 0}`;
+        // Status chips
+        if(meta.source){
+          txtSource.textContent = `Source: ${meta.source === 'webcam' ? 'Webcam' : 'File'}`;
+          dotSource.className = `dot ${meta.source === 'webcam' ? 'green' : ''}`;
+        }
+        const rec = !!meta.recording;
+        txtRec.textContent = `Recording: ${rec ? 'ON' : 'OFF'}`;
+        dotRec.className = `dot ${rec ? 'green' : 'red'}`;
+      }
+
+      // Login + gated WS connect
+      let ws;
+      let loggedOut = false;
+      function connectWS(){
+        if(loggedOut) return; // don't connect while logged out
+        if(ws && (ws.readyState === 0 || ws.readyState === 1)) return;
+        const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+        ws = new WebSocket(`${proto}://${location.host}/ws/detections/`);
+        ws.onopen = ()=> { hud.textContent = 'Connected'; logActivity('ws connected'); };
+        ws.onmessage = (ev)=>{ try{ draw(JSON.parse(ev.data)); }catch(e){} };
+        ws.onclose = ()=>{ hud.textContent = 'Disconnected. Reconnecting…'; logActivity('ws disconnected'); if(!loggedOut) setTimeout(connectWS, 1000); };
+        ws.onerror = ()=> ws.close();
+      }
+
+      const loginOverlay = document.getElementById('loginOverlay');
+      const loginForm = document.getElementById('loginForm');
+      const loginErr = document.getElementById('loginError');
+      const U = 'coral', P = 'vision123'; // hardcoded credentials
+      function showLogin(on){ loginOverlay.style.display = on ? 'flex' : 'none'; }
+      function tryAutoLogin(){
+        if(sessionStorage.getItem('cv.loggedIn') === '1'){
+          showLogin(false);
+          loggedOut = false;
+          document.getElementById('btnLogout').style.display = 'inline-block';
+          connectWS();
+        } else {
+          showLogin(true);
+          document.getElementById('btnLogout').style.display = 'none';
+        }
+      }
+      loginForm.addEventListener('submit', (e)=>{
+        e.preventDefault();
+        const u = document.getElementById('loginUser').value.trim();
+        const p = document.getElementById('loginPass').value;
+        if(u === U && p === P){
+          sessionStorage.setItem('cv.loggedIn','1');
+          loginErr.textContent = '';
+          toast('Welcome to Coral Vision', true);
+          showLogin(false);
+          loggedOut = false;
+          document.getElementById('btnLogout').style.display = 'inline-block';
+          connectWS();
+        } else {
+          loginErr.textContent = 'Invalid username or password';
+          toast('Login failed', false);
+        }
+      });
+
+      // Logout handling
+      document.getElementById('btnLogout').addEventListener('click', ()=>{
+        // Clear session and stop reconnects
+        sessionStorage.removeItem('cv.loggedIn');
+        loggedOut = true;
+        document.getElementById('btnLogout').style.display = 'none';
+        // Close WS if open
+        try{ if(ws && ws.readyState === 1) ws.close(); }catch(e){}
+        // Show login
+        showLogin(true);
+        toast('Logged out', true);
+      });
+
+      // Initial gate
+      tryAutoLogin();
+    </script>
+  </body>
+</html>
