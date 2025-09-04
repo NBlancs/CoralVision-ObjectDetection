@@ -22,12 +22,12 @@ class YOLOApp:
 
         # Resolve model path relative to this script so it works regardless of CWD
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        model_path = os.path.join(script_dir, "coralaiv3.pt")
+        model_path = os.path.join(script_dir, "coralvision-bv2.pt")
         if not os.path.exists(model_path):
             messagebox.showerror(
                 "Model file not found",
                 f"Could not find YOLO weights at:\n{model_path}\n\n"
-                "Make sure 'coralaiv3' is in the same folder as this script."
+                "Make sure 'coralvision-bv2' is in the same folder as this script."
             )
             # Fail fast; __del__ will handle partial init safely
             raise FileNotFoundError(model_path)
@@ -46,7 +46,7 @@ class YOLOApp:
 
         # Start video capture
         # use mp4 vid for testing
-        self.video_source = os.path.join(os.path.dirname(os.path.abspath(__file__)), "coral.mp4")
+        # self.video_source = os.path.join(os.path.dirname(os.path.abspath(__file__)), "coral.mp4")
 
         # To use your camera instead of a video file, comment out the next line:
         # self.video_source = os.path.join(os.path.dirname(os.path.abspath(__file__)), "v2videotesting.mp4")
